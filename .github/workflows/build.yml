@@ -1,11 +1,14 @@
-name: Build APK
+name: Build & Release APK
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
+    tags:
+      - 'v*'
     branches: [ main, master ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -28,11 +31,10 @@ jobs:
           gradle-version: '8.11.1'
 
       - name: Build debug APK
-        # setup-gradle puts the `gradle` command on PATH, so we don't need the
-        # committed gradlew binary / gradle-wrapper.jar.
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK
+      - name: Upload APK artifact (non-tag runs)
+        if: startsWith(github.ref, 'refs/tags/') == false
         uses: actions/upload-artifact@v4
         with:
           name: MediaCodecTest-debug-apk
@@ -48,3 +50,14 @@ jobs:
             app/build/reports/
             build/reports/
           if-no-files-found: ignore
+
+      # Push a tag (v*) -> publish the APK straight to GitHub Releases.
+      # Uses debug signing (internal diagnostic tool, no release keystore needed).
+      - name: Publish to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/debug/*.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
