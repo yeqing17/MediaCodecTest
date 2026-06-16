@@ -4,8 +4,7 @@ import androidx.annotation.OptIn;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.util.UnstableApi;
-import androidx.media3.exoplayer.AnalyticsListener;
-
+import androidx.media3.exoplayer.analytics.AnalyticsListener;
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo;
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil;
 
@@ -98,19 +97,19 @@ public class StatsCollector implements AnalyticsListener {
             return "N/A";
         }
         try {
-            List<MediaCodecInfo> infos = MediaCodecUtil.getDecoderInfo(mimeType, false, false);
+            List<MediaCodecInfo> infos = MediaCodecUtil.getDecoderInfos(mimeType, false, false);
             if (infos == null || infos.isEmpty()) {
                 return "none";
             }
             if (forceSoftware) {
                 for (MediaCodecInfo info : infos) {
-                    if (!info.isHardwareAccelerated()) {
-                        return info.getName();
+                    if (!info.hardwareAccelerated) {
+                        return info.name;
                     }
                 }
             }
             // First entry is ExoPlayer's preferred decoder (hardware by default).
-            return infos.get(0).getName();
+            return infos.get(0).name;
         } catch (MediaCodecUtil.DecoderQueryException e) {
             return "error";
         }

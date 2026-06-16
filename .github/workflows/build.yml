@@ -31,43 +31,13 @@ jobs:
         # setup-gradle puts the `gradle` command on PATH, so we don't need the
         # committed gradlew binary / gradle-wrapper.jar.
         run: gradle assembleDebug --no-daemon --stacktrace
-        continue-on-error: true
-
-      - name: Dump media3 API signatures
-        if: always()
-        run: |
-          set +e
-          echo "=== media3 aars in gradle cache ==="
-          find ~/.gradle/caches -name "media3-*.aar" 2>/dev/null
-          mkdir -p /tmp/m3
-          for aar in $(find ~/.gradle/caches -name "media3-*.aar" 2>/dev/null); do
-            name=$(basename "$aar" .aar)
-            mkdir -p "/tmp/m3/$name"
-            unzip -o "$aar" classes.jar -d "/tmp/m3/$name" >/dev/null 2>&1
-          done
-          CP=$(find /tmp/m3 -name classes.jar 2>/dev/null | tr '\n' ':')
-          echo "CP=$CP"
-          for c in \
-            androidx.media3.exoplayer.analytics.AnalyticsListener \
-            androidx.media3.exoplayer.video.VideoFrameMetadataListener \
-            androidx.media3.exoplayer.mediacodec.MediaCodecSelector \
-            androidx.media3.exoplayer.mediacodec.MediaCodecInfo \
-            androidx.media3.exoplayer.mediacodec.MediaCodecUtil \
-            androidx.media3.common.Player \
-            androidx.media3.exoplayer.ExoPlayer \
-            androidx.media3.exoplayer.DefaultRenderersFactory \
-            ; do
-            echo ""
-            echo "########## $c ##########"
-            javap -classpath "$CP" "$c" 2>&1 | head -150
-          done
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MediaCodecTest-debug-apk
           path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: ignore
+          if-no-files-found: error
 
       - name: Upload build reports
         if: always()

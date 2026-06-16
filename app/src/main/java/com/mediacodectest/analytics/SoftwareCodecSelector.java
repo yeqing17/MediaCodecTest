@@ -20,15 +20,15 @@ public class SoftwareCodecSelector implements MediaCodecSelector {
     public static final SoftwareCodecSelector INSTANCE = new SoftwareCodecSelector();
 
     @Override
-    public List<MediaCodecInfo> getDecoderInfo(String mimeType, boolean secure, boolean tunneling)
+    public List<MediaCodecInfo> getDecoderInfos(String mimeType, boolean secure, boolean tunneling)
             throws MediaCodecUtil.DecoderQueryException {
-        List<MediaCodecInfo> all = MediaCodecUtil.getDecoderInfo(mimeType, secure, tunneling);
+        List<MediaCodecInfo> all = MediaCodecUtil.getDecoderInfos(mimeType, secure, tunneling);
         if (all == null || all.isEmpty()) {
             return all;
         }
         List<MediaCodecInfo> software = new ArrayList<>();
         for (MediaCodecInfo info : all) {
-            if (!info.isHardwareAccelerated()) {
+            if (!info.hardwareAccelerated) {
                 software.add(info);
             }
         }
