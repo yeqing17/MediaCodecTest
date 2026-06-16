@@ -15,14 +15,14 @@
 
 ## 获取 APK
 
-两种方式：
+打 tag（`v1.0.0` 这类 `v` 开头）会触发 Actions 编译并直接把 APK 挂到
+[Releases](https://github.com/yeqing17/MediaCodecTest/releases) 页，下载即用。
+本地操作：
 
-- **Releases（正式发版）**：打 tag（`v1.0.0` 这类 `v` 开头）会触发 Actions 编译并直接把 APK 挂到
-  [Releases](https://github.com/yeqing17/MediaCodecTest/releases) 页，下载即用。
-  本地操作：`git tag v1.0.0 && git push origin v1.0.0`。
-- **Actions（每次提交验证）**：普通 push 到 main/master 会编译并把 APK 放进 Actions 运行结果的
-  Artifacts（名为 `MediaCodecTest-debug-apk`）。
-  仓库：https://github.com/yeqing17/MediaCodecTest/actions
+```
+git tag v1.0.0
+git push origin v1.0.0
+```
 
 APK 用 debug 签名（内部诊断工具，无需正式签名），可直接安装。
 
