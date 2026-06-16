@@ -1,0 +1,118 @@
+package com.mediacodectest.analytics;
+
+import androidx.annotation.OptIn;
+import androidx.media3.common.C;
+import androidx.media3.common.Format;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.exoplayer.AnalyticsListener;
+
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo;
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil;
+
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Aggregates the {@link AnalyticsListener} stream into the fields shown in the
+ * stats panel: format (mime / resolution / bitrate), accumulated dropped frames.
+ * The current decoder name is resolved through ExoPlayer's own MediaCodecUtil so it
+ * reflects the decoder that would actually be selected for the active mime type.
+ */
+@OptIn(markerClass = UnstableApi.class)
+public class StatsCollector implements AnalyticsListener {
+
+    private volatile String mimeType = "N/A";
+    private volatile int width = 0;
+    private volatile int height = 0;
+    private volatile long bitrate = C.LENGTH_UNSET;
+    private volatile int droppedTotal = 0;
+    private volatile long firstFrameRealtimeMs = 0;
+
+    private boolean forceSoftware;
+
+    public void setForceSoftware(boolean forceSoftware) {
+        this.forceSoftware = forceSoftware;
+    }
+
+    @Override
+    public void onVideoInputFormatChanged(EventTime eventTime, Format format) {
+        mimeType = format.sampleMimeType != null ? format.sampleMimeType : "N/A";
+        width = format.width;
+        height = format.height;
+        bitrate = format.bitrate;
+    }
+
+    @Override
+    public void onDroppedVideoFrames(EventTime eventTime, int droppedFrames, long elapsedMs) {
+        droppedTotal += droppedFrames;
+    }
+
+    @Override
+    public void onRenderedFirstFrame(EventTime eventTime, Object output, long renderTimeMs) {
+        if (firstFrameRealtimeMs == 0) {
+            firstFrameRealtimeMs = android.os.SystemClock.elapsedRealtime();
+        }
+    }
+
+    public String getMimeType() {
+        return mimeType;
+    }
+
+    public String getResolution() {
+        if (width <= 0 || height <= 0) {
+            return "N/A";
+        }
+        return String.format(Locale.US, "%dx%d", width, height);
+    }
+
+    public String getBitrate() {
+        if (bitrate == C.LENGTH_UNSET || bitrate <= 0) {
+            return "N/A";
+        }
+        return String.format(Locale.US, "%d kbps", bitrate / 1000);
+    }
+
+    public int getDroppedTotal() {
+        return droppedTotal;
+    }
+
+    public long getFirstFrameRealtimeMs() {
+        return firstFrameRealtimeMs;
+    }
+
+    public String getDecoderName() {
+        return resolveDecoderName(mimeType, forceSoftware);
+    }
+
+    public void reset() {
+        mimeType = "N/A";
+        width = 0;
+        height = 0;
+        bitrate = C.LENGTH_UNSET;
+        droppedTotal = 0;
+        firstFrameRealtimeMs = 0;
+    }
+
+    private static String resolveDecoderName(String mimeType, boolean forceSoftware) {
+        if (mimeType == null || "N/A".equals(mimeType)) {
+            return "N/A";
+        }
+        try {
+            List<MediaCodecInfo> infos = MediaCodecUtil.getDecoderInfo(mimeType, false, false);
+            if (infos == null || infos.isEmpty()) {
+                return "none";
+            }
+            if (forceSoftware) {
+                for (MediaCodecInfo info : infos) {
+                    if (!info.isHardwareAccelerated()) {
+                        return info.getName();
+                    }
+                }
+            }
+            // First entry is ExoPlayer's preferred decoder (hardware by default).
+            return infos.get(0).getName();
+        } catch (MediaCodecUtil.DecoderQueryException e) {
+            return "error";
+        }
+    }
+}

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="MediaCodecTest"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:paddingBottom="8dp" />
+
+        <!-- ===== URL section ===== -->
+        <TextView
+            style="@style/SectionLabel"
+            android:text="Play URL" />
+
+        <EditText
+            android:id="@+id/urlInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="http://xxx/live.ts"
+            android:inputType="textUri"
+            android:maxLines="2"
+            android:scrollHorizontally="true" />
+
+        <CheckBox
+            android:id="@+id/forceSoftware"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Force Software Decode" />
+
+        <!-- ===== Control row ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/playBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Play" />
+
+            <Button
+                android:id="@+id/stopBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Stop" />
+
+            <Button
+                android:id="@+id/getUrlBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Get URL" />
+        </LinearLayout>
+
+        <!-- ===== Player area ===== -->
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/playerView"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:layout_marginTop="8dp"
+            android:background="#FF000000"
+            app:resize_mode="fit"
+            app:use_controller="true"
+            app:surface_type="surface_view" />
+
+        <!-- ===== playurl config (populated in code) ===== -->
+        <TextView
+            style="@style/SectionLabel"
+            android:layout_marginTop="8dp"
+            android:text="playurl Config" />
+
+        <LinearLayout
+            android:id="@+id/configContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <!-- ===== Stats ===== -->
+        <TextView
+            style="@style/SectionLabel"
+            android:layout_marginTop="8dp"
+            android:text="Statistics" />
+
+        <TextView
+            android:id="@+id/statsView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/panel_bg"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:textSize="12sp"
+            android:textIsSelectable="true" />
+
+        <!-- ===== Export row ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/exportLogBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Export Log" />
+
+            <Button
+                android:id="@+id/exportReportBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Export Report" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
