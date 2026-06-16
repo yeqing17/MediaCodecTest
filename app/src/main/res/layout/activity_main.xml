@@ -1,28 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:orientation="vertical">
 
-    <LinearLayout
+    <!-- Title bar -->
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@color/panel_bg"
+        android:paddingStart="12dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp"
+        android:text="MediaCodecTest"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <!-- ===== Top: always-visible control + video + live stats ===== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:orientation="vertical"
-        android:padding="12dp">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="MediaCodecTest"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:paddingBottom="8dp" />
-
-        <!-- ===== URL section ===== -->
-        <TextView
-            style="@style/SectionLabel"
-            android:text="Play URL" />
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="6dp">
 
         <Spinner
             android:id="@+id/presetSpinner"
@@ -35,92 +39,106 @@
             android:layout_height="wrap_content"
             android:hint="http://xxx/live.ts"
             android:inputType="textUri"
-            android:maxLines="2"
-            android:scrollHorizontally="true" />
+            android:maxLines="1"
+            android:scrollHorizontally="true"
+            android:textSize="13sp" />
 
-        <CheckBox
-            android:id="@+id/forceSoftware"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Force Software Decode" />
-
-        <!-- ===== Control row ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp">
+            android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/playBtn"
+            <CheckBox
+                android:id="@+id/forceSoftware"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:text="Soft Decode"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/playBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="72dp"
                 android:text="Play" />
 
             <Button
                 android:id="@+id/stopBtn"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
+                android:minWidth="72dp"
                 android:text="Stop" />
-
-            <Button
-                android:id="@+id/getUrlBtn"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:text="Get URL" />
         </LinearLayout>
 
-        <!-- ===== Player area ===== -->
+        <!-- Player: fixed 16:9 box, sits above the stats panel -->
         <androidx.media3.ui.PlayerView
             android:id="@+id/playerView"
             android:layout_width="match_parent"
-            android:layout_height="220dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="0dp"
+            android:layout_weight="2.4"
+            android:layout_marginTop="6dp"
             android:background="#FF000000"
             app:resize_mode="fit"
-            app:use_controller="true"
-            app:surface_type="surface_view" />
+            app:surface_type="surface_view"
+            app:use_controller="false" />
 
-        <!-- ===== playurl config (populated in code) ===== -->
+        <!-- Live stats: always on screen with the video -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1.4"
+            android:layout_marginTop="6dp"
+            android:background="@color/panel_bg">
+
+            <TextView
+                android:id="@+id/statsView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:padding="6dp"
+                android:textSize="12sp"
+                android:textIsSelectable="true" />
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- ===== Bottom: collapsible low-frequency area ===== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp">
+
+        <!-- Toggle header for the advanced panel -->
         <TextView
+            android:id="@+id/advancedToggle"
             style="@style/SectionLabel"
-            android:layout_marginTop="8dp"
-            android:text="playurl Config" />
+            android:text="playurl Config  [+]"
+            android:background="@color/panel_bg"
+            android:padding="8dp" />
 
         <LinearLayout
             android:id="@+id/configContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" />
+            android:orientation="vertical"
+            android:visibility="gone" />
 
-        <!-- ===== Stats ===== -->
-        <TextView
-            style="@style/SectionLabel"
-            android:layout_marginTop="8dp"
-            android:text="Statistics" />
-
-        <TextView
-            android:id="@+id/statsView"
+        <Button
+            android:id="@+id/getUrlBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/panel_bg"
-            android:fontFamily="monospace"
-            android:padding="8dp"
-            android:textSize="12sp"
-            android:textIsSelectable="true" />
+            android:visibility="gone"
+            android:text="Get URL" />
 
-        <!-- ===== Export row ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp">
+            android:layout_marginTop="6dp">
 
             <Button
                 android:id="@+id/exportLogBtn"
@@ -134,9 +152,10 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:text="Export Report" />
         </LinearLayout>
+    </LinearLayout>
 
     </LinearLayout>
-</ScrollView>
+</LinearLayout>

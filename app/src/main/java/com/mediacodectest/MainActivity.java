@@ -62,6 +62,10 @@ public class MainActivity extends ComponentActivity {
     private EditText urlInput;
     private CheckBox forceSoftwareBox;
     private Spinner presetSpinner;
+    private TextView advancedToggle;
+    private View configContainer;
+    private View getUrlBtnView;
+    private boolean advancedOpen = false;
     private PlayerView playerView;
     private TextView statsView;
     private final Map<String, EditText> configFields = new LinkedHashMap<>();
@@ -118,6 +122,9 @@ public class MainActivity extends ComponentActivity {
         urlInput = findViewById(R.id.urlInput);
         forceSoftwareBox = findViewById(R.id.forceSoftware);
         presetSpinner = findViewById(R.id.presetSpinner);
+        advancedToggle = findViewById(R.id.advancedToggle);
+        configContainer = findViewById(R.id.configContainer);
+        getUrlBtnView = findViewById(R.id.getUrlBtn);
         playerView = findViewById(R.id.playerView);
         statsView = findViewById(R.id.statsView);
 
@@ -195,6 +202,16 @@ public class MainActivity extends ComponentActivity {
         findViewById(R.id.getUrlBtn).setOnClickListener(v -> fetchPlayUrl());
         findViewById(R.id.exportLogBtn).setOnClickListener(v -> exportLog());
         findViewById(R.id.exportReportBtn).setOnClickListener(v -> exportReport());
+        advancedToggle.setOnClickListener(v -> toggleAdvanced());
+    }
+
+    private void toggleAdvanced() {
+        advancedOpen = !advancedOpen;
+        int visibility = advancedOpen ? View.VISIBLE : View.GONE;
+        configContainer.setVisibility(visibility);
+        getUrlBtnView.setVisibility(visibility);
+        advancedToggle.setText(advancedOpen
+                ? "playurl Config  [-]" : "playurl Config  [+]");
     }
 
     // ---- Playback ----
