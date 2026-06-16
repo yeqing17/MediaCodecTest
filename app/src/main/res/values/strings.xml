@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">MediaCodecTest</string>
+
+    <!-- Preset playback URLs. Add a label + matching url to extend the dropdown. -->
+    <string-array name="preset_labels">
+        <item>自定义输入</item>
+        <item>ICC 直播(抓包 4200000953)</item>
+    </string-array>
+    <string-array name="preset_urls">
+        <item></item>
+        <item>http://httpicc.slave.tsyrmt.cn:14311/playurl?playtype=live&amp;protocol=http&amp;verifycode=1009909661&amp;accesstoken=R6A2FBFD5U10962007K3C31FF9DI6610F00AP1FDF0M3217021V20A53Z975D289B60Q0T1O3101001EW18B935B92D998AE9&amp;programid=4200000953&amp;playtoken=ABCDEFGHGJDHD2A9DD&amp;rate=icc@@udp://238.1.1.1:5000&amp;icctrial=0&amp;tick=1744999</item>
+    </string-array>
 </resources>

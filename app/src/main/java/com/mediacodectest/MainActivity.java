@@ -16,6 +16,9 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 
 import androidx.activity.ComponentActivity;
 import androidx.annotation.NonNull;
@@ -58,6 +61,7 @@ public class MainActivity extends ComponentActivity {
 
     private EditText urlInput;
     private CheckBox forceSoftwareBox;
+    private Spinner presetSpinner;
     private PlayerView playerView;
     private TextView statsView;
     private final Map<String, EditText> configFields = new LinkedHashMap<>();
@@ -113,14 +117,44 @@ public class MainActivity extends ComponentActivity {
 
         urlInput = findViewById(R.id.urlInput);
         forceSoftwareBox = findViewById(R.id.forceSoftware);
+        presetSpinner = findViewById(R.id.presetSpinner);
         playerView = findViewById(R.id.playerView);
         statsView = findViewById(R.id.statsView);
 
         buildConfigFields();
         bindButtons();
 
+        setupPresets();
+
         updateStats();
         requestStoragePermissionIfNeeded();
+    }
+
+    private void setupPresets() {
+        final java.lang.String[] labels = getResources().getStringArray(R.array.preset_labels);
+        final java.lang.String[] urls = getResources().getStringArray(R.array.preset_urls);
+        presetSpinner.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, labels));
+        presetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            private boolean first = true;
+
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                // Skip the synthetic initial selection so we don't clobber a typed URL.
+                if (first) {
+                    first = false;
+                    return;
+                }
+                if (position >= 0 && position < urls.length && urls[position].length() > 0) {
+                    urlInput.setText(urls[position]);
+                    urlInput.setSelection(urls[position].length());
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
     }
 
     private void buildConfigFields() {
