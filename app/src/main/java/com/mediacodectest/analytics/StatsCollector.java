@@ -85,6 +85,14 @@ public class StatsCollector implements AnalyticsListener {
                 + (wasCanceled ? " (canceled)" : ""));
     }
 
+    @Override
+    public void onLoadCanceled(EventTime eventTime, LoadEventInfo loadEventInfo,
+                               MediaLoadData mediaLoadData) {
+        Log.i(TAG, "load CANCELED: " + loadEventInfo.uri
+                + " | bytes=" + loadEventInfo.bytesLoaded
+                + " | " + dataTypeName(mediaLoadData.dataType));
+    }
+
     private static String dataTypeName(int dataType) {
         switch (dataType) {
             case C.DATA_TYPE_MEDIA: return "media";

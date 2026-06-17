@@ -28,6 +28,7 @@ public final class HttpTraceDataSource implements DataSource {
 
     private static final String TAG = "MCT";
     private static final int BODY_HEAD = 512;
+    private static final int READ_LOG_INTERVAL = 256 * 1024;
 
     private final DataSource delegate;
     private final ByteArrayOutputStream body = new ByteArrayOutputStream();
@@ -57,17 +58,25 @@ public final class HttpTraceDataSource implements DataSource {
                 + " | status=" + status()
                 + " | type=" + header("Content-Type")
                 + " | declaredLen=" + (declared == C.LENGTH_UNSET ? "unknown" : declared));
-        return declared;
+        // Hide the server's bogus placeholder length (10TB on this live source) from
+        // ExoPlayer: report unknown length so it treats this as a live stream and keeps
+        // reading until EOF, instead of waiting for 10TB / doing VOD-style seeking.
+        return C.LENGTH_UNSET;
     }
 
     @Override
     public int read(byte[] buffer, int offset, int length) throws IOException {
         int read = delegate.read(buffer, offset, length);
         if (read > 0) {
+            long before = bytesRead;
             bytesRead += read;
             int keep = Math.min(read, BODY_HEAD - body.size());
             if (keep > 0) {
                 body.write(buffer, offset, keep);
+            }
+            if (bytesRead / READ_LOG_INTERVAL != before / READ_LOG_INTERVAL) {
+                Log.i(TAG, "HTTP read: " + (dataSpec != null ? dataSpec.uri : "?")
+                        + " totalBytes=" + bytesRead);
             }
         }
         return read;
