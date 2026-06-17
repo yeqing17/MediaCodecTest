@@ -34,6 +34,7 @@ import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.extractor.DefaultExtractorsFactory;
 import androidx.media3.ui.PlayerView;
 
 import com.mediacodectest.analytics.FpsCounter;
@@ -250,7 +251,7 @@ public class MainActivity extends ComponentActivity {
         DefaultDataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(this,
                 new HttpTraceDataSource.Factory(httpFactory));
         DefaultMediaSourceFactory mediaSourceFactory =
-                new DefaultMediaSourceFactory(this, dataSourceFactory);
+                new DefaultMediaSourceFactory(dataSourceFactory, new DefaultExtractorsFactory());
 
         Log.i(TAG, "Play URL: " + url);
 
