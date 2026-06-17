@@ -29,11 +29,15 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
-import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.datasource.DefaultDataSource;
+import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.ui.PlayerView;
 
 import com.mediacodectest.analytics.FpsCounter;
+import com.mediacodectest.analytics.HttpTraceDataSource;
 import com.mediacodectest.analytics.SoftwareCodecSelector;
 import com.mediacodectest.analytics.StatsCollector;
 import com.mediacodectest.diag.CodecDiagnostor;
@@ -242,7 +246,17 @@ public class MainActivity extends ComponentActivity {
             Log.i(TAG, "Using HARDWARE decode path");
         }
 
-        player = new ExoPlayer.Builder(this, renderersFactory).build();
+        DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory();
+        DefaultDataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(this,
+                new HttpTraceDataSource.Factory(httpFactory));
+        DefaultMediaSourceFactory mediaSourceFactory =
+                new DefaultMediaSourceFactory(this, dataSourceFactory);
+
+        Log.i(TAG, "Play URL: " + url);
+
+        player = new ExoPlayer.Builder(this, renderersFactory)
+                .setMediaSourceFactory(mediaSourceFactory)
+                .build();
         player.addListener(playerListener);
         player.addAnalyticsListener(stats);
         player.setVideoFrameMetadataListener(fpsCounter);

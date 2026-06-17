@@ -16,15 +16,31 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Calls the ICC playurl endpoint and extracts the playable URL. The response shape is
- * not documented, so extraction tries the common keys (playurl / playUrl / url) at the
- * top level and under a nested "data" object, then falls back to a raw URL string.
+ * Resolves a playable live URL via the homed 3-step flow (see 获取播放链接的流程.md):
+ *
+ *   1. account/login          -> access_token + device_id (device_id becomes verifycode)
+ *   2. media/channel/get_info -> play_token
+ *   3. assemble the final playurl with protocol=http & playtype=live
+ *
+ * Only account / deviceno / chnlid come from the user; every other request
+ * parameter is fixed per the captured session.
  */
 public class PlayUrlProvider {
 
     private static final String TAG = "MCT";
-    private static final String BASE_URL =
-            "http://httpicc.slave.tsyrmt.cn:14311/playurl";
+
+    private static final String LOGIN_URL =
+            "http://access.tsyrmt.cn/account/login";
+    private static final String CHANNEL_INFO_URL =
+            "http://slave.tsyrmt.cn/media/channel/get_info";
+    private static final String PLAYURL_URL =
+            "http://stream.live.slave.tsyrmt.cn:14311/playurl";
+
+    // Fixed login params from the captured request. Only account + deviceno vary.
+    private static final String LOGIN_FIXED_PARAMS =
+            "&accounttype=2&accesstoken=&devicetype=1&grouptype=7"
+                    + "&pwd=96e79218965eb72c92a549dd5a330112"
+                    + "&systeminfo=1&needoperator=1&isforce=1";
 
     public interface Callback {
         void onUrl(String url);
@@ -35,117 +51,103 @@ public class PlayUrlProvider {
 
     public void fetch(Map<String, String> params, Callback callback) {
         executor.execute(() -> {
-            String fullUrl = buildUrl(params);
-            Log.i(TAG, "playurl request: " + fullUrl);
-            HttpURLConnection conn = null;
             try {
-                conn = (HttpURLConnection) new URL(fullUrl).openConnection();
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(15000);
-                conn.setRequestMethod("GET");
-                conn.setDoInput(true);
-
-                int code = conn.getResponseCode();
-                String body = readFully(conn);
-                Log.i(TAG, "playurl response (" + code + "): " + truncate(body, 500));
-
-                if (code < 200 || code >= 300) {
-                    postError(callback, "HTTP " + code);
+                String account = param(params, "account");
+                String deviceno = param(params, "deviceno");
+                String chnlid = param(params, "chnlid");
+                if (account.isEmpty() || deviceno.isEmpty() || chnlid.isEmpty()) {
+                    postError(callback, "account / deviceno / chnlid 不能为空");
                     return;
                 }
-                String url = extractUrl(body);
-                if (url == null) {
-                    postError(callback, "No URL in response");
+
+                // Step 1: login -> access_token + device_id (verifycode)
+                JSONObject login = getJson(buildLoginUrl(account, deviceno));
+                if (login.optInt("ret", -1) != 0) {
+                    postError(callback, "登录失败: ret=" + login.optInt("ret", -1)
+                            + " " + login.optString("ret_msg"));
                     return;
                 }
-                final String result = url;
+                String accessToken = login.optString("access_token", "");
+                long deviceId = login.optLong("device_id", -1);
+                if (accessToken.isEmpty() || deviceId <= 0) {
+                    postError(callback, "登录返回缺少 access_token / device_id");
+                    return;
+                }
+                Log.i(TAG, "playurl step1 ok: access_token=" + truncate(accessToken, 32)
+                        + " device_id=" + deviceId);
+
+                // Step 2: channel get_info -> play_token
+                JSONObject info = getJson(buildChannelInfoUrl(accessToken, chnlid));
+                if (info.optInt("ret", -1) != 0) {
+                    postError(callback, "获取频道信息失败: ret=" + info.optInt("ret", -1)
+                            + " " + info.optString("ret_msg"));
+                    return;
+                }
+                String playToken = info.optString("play_token", "");
+                if (playToken.isEmpty()) {
+                    postError(callback, "频道信息返回缺少 play_token");
+                    return;
+                }
+                Log.i(TAG, "playurl step2 ok: play_token=" + playToken);
+
+                // Step 3: assemble final playurl
+                String finalUrl = buildPlayUrl(accessToken, chnlid, playToken, deviceId);
+                Log.i(TAG, "playurl step3 ok: " + finalUrl);
+                final String result = finalUrl;
                 post(callback, () -> callback.onUrl(result));
             } catch (Exception e) {
                 Log.e(TAG, "playurl failed", e);
                 postError(callback, e.getMessage());
-            } finally {
-                if (conn != null) {
-                    conn.disconnect();
-                }
             }
         });
     }
 
-    private void postError(Callback callback, String message) {
-        final String msg = message;
-        post(callback, () -> callback.onError(msg));
+    // ---- URL assembly ----
+
+    private String buildLoginUrl(String account, String deviceno) {
+        return LOGIN_URL + "?account=" + enc(account) + "&deviceno=" + enc(deviceno)
+                + LOGIN_FIXED_PARAMS;
     }
 
-    private void post(Callback callback, Runnable r) {
-        new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
+    private String buildChannelInfoUrl(String accessToken, String chnlid) {
+        return CHANNEL_INFO_URL + "?accesstoken=" + enc(accessToken)
+                + "&postersize=0&livesize=0&chnlid=" + enc(chnlid);
     }
 
-    private String buildUrl(Map<String, String> params) {
-        if (params == null || params.isEmpty()) {
-            return BASE_URL;
-        }
-        StringBuilder sb = new StringBuilder(BASE_URL);
-        char sep = BASE_URL.indexOf('?') >= 0 ? '&' : '?';
-        for (Map.Entry<String, String> e : params.entrySet()) {
-            if (e.getKey() == null) {
-                continue;
-            }
-            sb.append(sep)
-                    .append(URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8))
-                    .append('=')
-                    .append(URLEncoder.encode(nullToEmpty(e.getValue()), StandardCharsets.UTF_8));
-            sep = '&';
-        }
-        return sb.toString();
+    private String buildPlayUrl(String accessToken, String chnlid,
+                                String playToken, long deviceId) {
+        return PLAYURL_URL + "?protocol=http&playtype=live"
+                + "&accesstoken=" + enc(accessToken)
+                + "&programid=" + enc(chnlid)
+                + "&playtoken=" + enc(playToken)
+                + "&verifycode=" + deviceId;
     }
 
-    private String extractUrl(String body) {
-        if (body == null) {
-            return null;
-        }
-        String trimmed = body.trim();
-        if (trimmed.isEmpty()) {
-            return null;
-        }
-        // Plain URL string.
-        if (trimmed.startsWith("http://") || trimmed.startsWith("rtsp://")
-                || trimmed.startsWith("https://") || trimmed.startsWith("rtmp://")) {
-            return trimmed;
-        }
+    // ---- HTTP ----
+
+    private JSONObject getJson(String fullUrl) throws Exception {
+        HttpURLConnection conn = null;
         try {
-            JSONObject json = new JSONObject(trimmed);
-            String[] topKeys = {"playurl", "playUrl", "url", "playURL"};
-            for (String key : topKeys) {
-                if (json.has(key)) {
-                    String v = json.optString(key, null);
-                    if (v != null && !v.isEmpty()) {
-                        return v;
-                    }
-                }
+            Log.i(TAG, "playurl request: " + fullUrl);
+            conn = (HttpURLConnection) new URL(fullUrl).openConnection();
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(15000);
+            conn.setRequestMethod("GET");
+            conn.setDoInput(true);
+
+            int code = conn.getResponseCode();
+            String body = readFully(conn);
+            Log.i(TAG, "playurl response (" + code + "): " + truncate(body, 500));
+
+            if (code < 200 || code >= 300) {
+                throw new Exception("HTTP " + code);
             }
-            if (json.has("data") && json.opt("data") instanceof JSONObject) {
-                JSONObject data = json.getJSONObject("data");
-                for (String key : topKeys) {
-                    if (data.has(key)) {
-                        String v = data.optString(key, null);
-                        if (v != null && !v.isEmpty()) {
-                            return v;
-                        }
-                    }
-                }
-            }
-            // Last resort: scan for the first http URL substring.
-            int idx = trimmed.indexOf("http://");
-            if (idx >= 0) {
-                return trimmed.substring(idx).split("\"|'|<|\\s")[0];
-            }
-        } catch (Exception ignored) {
-            int idx = trimmed.indexOf("http://");
-            if (idx >= 0) {
-                return trimmed.substring(idx).split("\"|'|<|\\s")[0];
+            return new JSONObject(body.trim());
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
             }
         }
-        return null;
     }
 
     private String readFully(HttpURLConnection conn) throws Exception {
@@ -172,6 +174,28 @@ public class PlayUrlProvider {
         return sb.toString();
     }
 
+    // ---- Threading helpers ----
+
+    private void postError(Callback callback, String message) {
+        final String msg = message;
+        post(callback, () -> callback.onError(msg));
+    }
+
+    private void post(Callback callback, Runnable r) {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
+    }
+
+    // ---- Misc ----
+
+    private static String param(Map<String, String> params, String key) {
+        String v = params == null ? null : params.get(key);
+        return v == null ? "" : v.trim();
+    }
+
+    private static String enc(String s) {
+        return URLEncoder.encode(nullToEmpty(s), StandardCharsets.UTF_8);
+    }
+
     private static String nullToEmpty(String s) {
         return s == null ? "" : s;
     }
@@ -183,20 +207,16 @@ public class PlayUrlProvider {
         return s.length() <= max ? s : s.substring(0, max) + "...";
     }
 
+    /**
+     * The three user inputs for the playurl Config panel, in UI order.
+     * Defaults are the example values from 获取播放链接的流程.md so the panel
+     * works out of the box; swap them for the account/device/channel under test.
+     */
     public static Map<String, String> defaultParamKeys() {
-        // Order preserved for the UI. Defaults taken from a captured ICC live
-        // session (noplaycube.log): live stream over plain HTTP, ICC multicast rate.
         Map<String, String> keys = new LinkedHashMap<>();
-        keys.put("playtype", "live");
-        keys.put("protocol", "http");
-        keys.put("verifycode", "");
-        keys.put("accesstoken", "");
-        keys.put("programid", "");
-        keys.put("playtoken", "");
-        // ICC rate may be a plain speed (1) or an "icc@@<multicast-url>" value.
-        keys.put("rate", "icc@@udp://238.1.1.1:5000");
-        keys.put("icctrial", "0");
-        keys.put("tick", "");
+        keys.put("account", "760053843406");
+        keys.put("deviceno", "08091b11000010000011221802000017");
+        keys.put("chnlid", "4200000953");
         return keys;
     }
 }

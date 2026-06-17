@@ -1,5 +1,7 @@
 package com.mediacodectest.analytics;
 
+import android.util.Log;
+
 import androidx.annotation.OptIn;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -7,7 +9,10 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.analytics.AnalyticsListener;
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo;
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil;
+import androidx.media3.exoplayer.source.LoadEventInfo;
+import androidx.media3.exoplayer.source.MediaLoadData;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 
@@ -19,6 +24,8 @@ import java.util.Locale;
  */
 @OptIn(markerClass = UnstableApi.class)
 public class StatsCollector implements AnalyticsListener {
+
+    private static final String TAG = "MCT";
 
     private volatile String mimeType = "N/A";
     private volatile int width = 0;
@@ -50,6 +57,40 @@ public class StatsCollector implements AnalyticsListener {
     public void onRenderedFirstFrame(EventTime eventTime, Object output, long renderTimeMs) {
         if (firstFrameRealtimeMs == 0) {
             firstFrameRealtimeMs = android.os.SystemClock.elapsedRealtime();
+        }
+    }
+
+    // ---- Load tracing: shows whether ExoPlayer is pulling data and how much. ----
+
+    @Override
+    public void onLoadStarted(EventTime eventTime, LoadEventInfo loadEventInfo,
+                              MediaLoadData mediaLoadData) {
+        Log.i(TAG, "load start: " + loadEventInfo.uri
+                + " | " + dataTypeName(mediaLoadData.dataType));
+    }
+
+    @Override
+    public void onLoadCompleted(EventTime eventTime, LoadEventInfo loadEventInfo,
+                                MediaLoadData mediaLoadData) {
+        Log.i(TAG, "load done: " + loadEventInfo.uri
+                + " | bytes=" + loadEventInfo.bytesLoaded
+                + " | " + dataTypeName(mediaLoadData.dataType));
+    }
+
+    @Override
+    public void onLoadError(EventTime eventTime, LoadEventInfo loadEventInfo,
+                            MediaLoadData mediaLoadData, IOException error, boolean wasCanceled) {
+        Log.e(TAG, "load ERROR: " + loadEventInfo.uri
+                + " | " + error.getClass().getSimpleName() + ": " + error.getMessage()
+                + (wasCanceled ? " (canceled)" : ""));
+    }
+
+    private static String dataTypeName(int dataType) {
+        switch (dataType) {
+            case C.DATA_TYPE_MEDIA: return "media";
+            case C.DATA_TYPE_MANIFEST: return "manifest";
+            case C.DATA_TYPE_DRM: return "drm";
+            default: return "type=" + dataType;
         }
     }
 

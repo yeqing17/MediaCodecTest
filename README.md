@@ -40,14 +40,14 @@ APK 用 debug 签名（内部诊断工具，无需正式签名），可直接安
 
 - **顶部区（常驻）**：预设下拉 → URL 输入 → 软解开关 + Play/Stop → 视频画面（16:9）→ 实时统计面板。
   播放时视频与统计面板同屏，可对照看 FPS / 丢帧 / 解码器。
-- **底部区（折叠）**：`playurl Config [+]` 标题条点一下展开 9 个参数输入框和 Get URL 按钮；
+- **底部区（折叠）**：`playurl Config [+]` 标题条点一下展开 3 个参数输入框（account / deviceno / chnlid）和 Get URL 按钮；
   不展开时一行都不占。Export Log / Export Report 常驻底部。
 
 ## 用法
 
 - **模式1（预设）**：顶部下拉选已内置的播放地址，直接 Play。
 - **模式2（手输）**：URL 输入框粘贴地址，Play。
-- **模式3（playurl 拉取）**：展开底部 playurl Config，填 9 个参数，点 Get URL 拉回地址，再 Play。
+- **模式3（playurl 拉取）**：展开底部 playurl Config，填 account / deviceno / chnlid，点 Get URL 自动走「登录 → 频道信息 → 拼出播放地址」三步，再 Play。
 - `Soft Decode` 勾选走纯软解（c2.android.* / OMX.google.*），不勾默认硬解。
 - Export Log / Export Report 输出到 `/sdcard/MediaCodecTest/`（10+ 分区存储自动改写到 App 专属目录）。
 
@@ -81,7 +81,7 @@ app/src/main/java/com/mediacodectest/
 │   ├── ReportExporter.java        # report.txt 快照
 │   └── OutputDirs.java            # /sdcard 写入，scoped-storage 兜底
 └── net/
-    └── PlayUrlProvider.java       # GET playurl，灵活解析出播放地址
+    └── PlayUrlProvider.java       # 三步获取 playurl：登录取 token → 频道信息取 play_token → 拼播放地址
 ```
 
 ## 验收判读
@@ -102,8 +102,8 @@ app/src/main/java/com/mediacodectest/
 
 ## 需确认/补充的点
 
-1. playurl 返回格式未定义：当前按优先级解析 playurl/playUrl/url，再查 data.*，再兜底纯文本 URL。
-   拿到真实响应后可在 `PlayUrlProvider.extractUrl()` 对齐字段。
+1. playurl 三步流程：登录取 `access_token` / `device_id`（作 verifycode）→ 频道信息取 `play_token` → 拼最终播放地址。
+   字段解析在 `PlayUrlProvider.fetch()`。登录的固定参数（accounttype / devicetype / grouptype / pwd 等）按抓包硬编码，
+   用户只填 account / deviceno / chnlid；换密码不同的账号需改 `LOGIN_FIXED_PARAMS` 里的 pwd。
 2. READ_LOGS：导出全局 logcat（含 SurfaceFlinger）需 root/系统签名；普通设备仅能拿到本进程日志（含 ExoPlayer）。
-3. playurl 默认参数值为占位（`PlayUrlProvider.defaultParamKeys()`），已按抓包日志设了
-   `playtype=live` / `protocol=http` / `rate=icc@@udp://238.1.1.1:5000`，其余按实际接口填。
+3. playurl 三字段预填了文档示例（account 760053843406 / deviceno …21802000017 / chnlid 4200000953），换账号频道直接改输入框即可。

@@ -8,6 +8,6 @@
     </string-array>
     <string-array name="preset_urls">
         <item></item>
-        <item>http://httpicc.slave.tsyrmt.cn:14311/playurl?playtype=live&amp;protocol=http&amp;verifycode=1009909661&amp;accesstoken=R6A2FBFD5U10962007K3C31FF9DI6610F00AP1FDF0M3217021V20A53Z975D289B60Q0T1O3101001EW18B935B92D998AE9&amp;programid=4200000953&amp;playtoken=ABCDEFGHGJDHD2A9DD&amp;rate=icc@@udp://238.1.1.1:5000&amp;icctrial=0&amp;tick=1744999</item>
+        <item>http://stream.live.slave.tsyrmt.cn:14311/playurl?protocol=http&amp;playtype=live&amp;accesstoken=R6A30B97DU1090A007K3C31FF9DI4D11F00AP1FDF0M3217021V20A53Z975D289B60W18B96FD9D91EC6A9&amp;programid=4200000953&amp;playtoken=31633TFZUSIARMI10&amp;verifycode=1009909661</item>
     </string-array>
 </resources>
