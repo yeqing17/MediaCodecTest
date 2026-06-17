@@ -14,6 +14,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AdapterView;
@@ -73,6 +74,7 @@ public class MainActivity extends ComponentActivity {
     private boolean advancedOpen = false;
     private PlayerView playerView;
     private TextView statsView;
+    private ScrollView statsScroll;
     private final Map<String, EditText> configFields = new LinkedHashMap<>();
 
     private ExoPlayer player;
@@ -132,6 +134,7 @@ public class MainActivity extends ComponentActivity {
         getUrlBtnView = findViewById(R.id.getUrlBtn);
         playerView = findViewById(R.id.playerView);
         statsView = findViewById(R.id.statsView);
+        statsScroll = findViewById(R.id.statsScroll);
 
         buildConfigFields();
         bindButtons();
@@ -389,7 +392,14 @@ public class MainActivity extends ComponentActivity {
             sb.append('\n');
         }
 
+        // Preserve scroll position across the per-second setText(), otherwise the
+        // ScrollView snaps back to the top every refresh.
+        int scrollY = statsScroll != null ? statsScroll.getScrollY() : 0;
         statsView.setText(sb.toString());
+        if (statsScroll != null) {
+            final int sy = scrollY;
+            statsScroll.post(() -> statsScroll.scrollTo(0, sy));
+        }
     }
 
     // ---- Permissions ----

@@ -36,12 +36,10 @@ APK 用 debug 签名（内部诊断工具，无需正式签名），可直接安
 
 ## 界面布局
 
-单页面，分上下两区，核心是让**视频画面与实时统计同屏可见**：
+横屏锁定，左右分栏，核心是让**视频画面与实时统计同屏可见**：
 
-- **顶部区（常驻）**：预设下拉 → URL 输入 → 软解开关 + Play/Stop → 视频画面（16:9）→ 实时统计面板。
-  播放时视频与统计面板同屏，可对照看 FPS / 丢帧 / 解码器。
-- **底部区（折叠）**：`playurl Config [+]` 标题条点一下展开 3 个参数输入框（account / deviceno / chnlid）和 Get URL 按钮；
-  不展开时一行都不占。Export Log / Export Report 常驻底部。
+- **左栏**：预设下拉 → URL 输入 + Play/Stop → 软解开关 → 视频画面（16:9，主体）→ `playurl Config [+]`（折叠，点开是 account / deviceno / chnlid 三输入框 + Get URL）→ Export Log / Export Report。
+- **右栏**：实时统计面板（放大字号），与视频同屏，对照看 FPS / 丢帧 / 解码器 / 缓冲水位。
 
 ## 用法
 
