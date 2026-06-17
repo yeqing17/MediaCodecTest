@@ -247,7 +247,14 @@ public class MainActivity extends ComponentActivity {
             Log.i(TAG, "Using HARDWARE decode path");
         }
 
-        DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory();
+        // Live servers commonly throttle/drop clients using the default "ExoPlayer" UA
+        // (confirmed: the same playurl plays in VLC, but ExoPlayer got only ~940 bytes
+        // before the connection was cut). VLC's UA is accepted, so use it; loosen the
+        // read timeout for slow live starts.
+        DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
+                .setUserAgent("VLC/3.0.20 LibVLC/3.0.20")
+                .setConnectTimeoutMs(15000)
+                .setReadTimeoutMs(30000);
         DefaultDataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(this,
                 new HttpTraceDataSource.Factory(httpFactory));
         DefaultMediaSourceFactory mediaSourceFactory =
