@@ -1,8 +1,11 @@
 package com.mediacodectest;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -22,6 +25,8 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
 import androidx.activity.ComponentActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
 import androidx.core.app.ActivityCompat;
@@ -48,6 +53,7 @@ import com.mediacodectest.export.LogExporter;
 import com.mediacodectest.export.ReportExporter;
 import com.mediacodectest.net.PlayUrlProvider;
 
+import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -75,6 +81,7 @@ public class MainActivity extends ComponentActivity {
     private PlayerView playerView;
     private TextView statsView;
     private ScrollView statsScroll;
+    private ActivityResultLauncher<String[]> openFileLauncher;
     private final Map<String, EditText> configFields = new LinkedHashMap<>();
 
     private ExoPlayer player;
@@ -136,6 +143,24 @@ public class MainActivity extends ComponentActivity {
         statsView = findViewById(R.id.statsView);
         statsScroll = findViewById(R.id.statsScroll);
 
+        // SAF file picker: returns a content:// URI for any local file (U盘 / sdcard /
+        // tmp). No storage permission needed. We take a persistable read grant so the
+        // chosen path stays valid if the user replays it later.
+        openFileLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(), uri -> {
+                    if (uri == null) return;
+                    try {
+                        getContentResolver().takePersistableUriPermission(
+                                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    } catch (SecurityException ignore) {
+                    }
+                    String s = uri.toString();
+                    urlInput.setText(s);
+                    urlInput.setSelection(s.length());
+                    toast("已选择文件，开始播放");
+                    startPlayback();
+                });
+
         buildConfigFields();
         bindButtons();
 
@@ -160,9 +185,16 @@ public class MainActivity extends ComponentActivity {
                     first = false;
                     return;
                 }
-                if (position >= 0 && position < urls.length && urls[position].length() > 0) {
-                    urlInput.setText(urls[position]);
-                    urlInput.setSelection(urls[position].length());
+                if (position < 0 || position >= urls.length) return;
+                String u = urls[position];
+                if (u == null || u.isEmpty()) return;
+                if (u.startsWith("local://")) {
+                    String resolved = resolveLocalMediaTs();
+                    urlInput.setText(resolved);
+                    urlInput.setSelection(resolved.length());
+                } else {
+                    urlInput.setText(u);
+                    urlInput.setSelection(u.length());
                 }
             }
 
@@ -207,19 +239,68 @@ public class MainActivity extends ComponentActivity {
     private void bindButtons() {
         findViewById(R.id.playBtn).setOnClickListener(v -> startPlayback());
         findViewById(R.id.stopBtn).setOnClickListener(v -> stopPlayback());
+        findViewById(R.id.openFileBtn).setOnClickListener(v -> openLocalFile());
         findViewById(R.id.getUrlBtn).setOnClickListener(v -> fetchPlayUrl());
         findViewById(R.id.exportLogBtn).setOnClickListener(v -> exportLog());
         findViewById(R.id.exportReportBtn).setOnClickListener(v -> exportReport());
         advancedToggle.setOnClickListener(v -> toggleAdvanced());
     }
 
+    private void openLocalFile() {
+        openFileLauncher.launch(new String[]{"*/*"});
+    }
+
+    /**
+     * Resolve the "local media.ts" preset to a file:// path. Looks first on the
+     * primary shared storage (sdcard), then on every mounted removable volume
+     * (U盘 / SD). Falls back to a default path and prompts the user to pick via
+     * the 文件 button when nothing readable is found.
+     */
+    private String resolveLocalMediaTs() {
+        File sd = Environment.getExternalStorageDirectory();
+        File primary = new File(sd, "media.ts");
+        if (primary.exists() && primary.canRead()) {
+            return "file://" + primary.getAbsolutePath();
+        }
+        // getExternalFilesDirs returns app-private dirs on every mounted volume;
+        // strip the /Android/data/<pkg>/files suffix to reach each volume root.
+        File[] dirs = getExternalFilesDirs(null);
+        if (dirs != null) {
+            for (File d : dirs) {
+                if (d == null) continue;
+                File vol = volumeRoot(d);
+                if (vol == null) continue;
+                File mf = new File(vol, "media.ts");
+                if (mf.exists() && mf.canRead()) {
+                    return "file://" + mf.getAbsolutePath();
+                }
+            }
+        }
+        toast("未找到 media.ts，请点 文件 按钮手动选择");
+        return "file://" + primary.getAbsolutePath();
+    }
+
+    private static File volumeRoot(File appFilesDir) {
+        String p = appFilesDir.getAbsolutePath();
+        int i = p.indexOf("/Android/data/");
+        return i > 0 ? new File(p.substring(0, i)) : null;
+    }
+
     private void toggleAdvanced() {
         advancedOpen = !advancedOpen;
         int visibility = advancedOpen ? View.VISIBLE : View.GONE;
-        configContainer.setVisibility(visibility);
-        getUrlBtnView.setVisibility(visibility);
-        advancedToggle.setText(advancedOpen
-                ? "playurl Config  [-]" : "playurl Config  [+]");
+        // Guard against a stale/inconsistent layout build where a view id is
+        // missing, so toggling the panel can never NPE the app.
+        if (configContainer != null) {
+            configContainer.setVisibility(visibility);
+        }
+        if (getUrlBtnView != null) {
+            getUrlBtnView.setVisibility(visibility);
+        }
+        if (advancedToggle != null) {
+            advancedToggle.setText(advancedOpen
+                    ? "playurl Config  [-]" : "playurl Config  [+]");
+        }
     }
 
     // ---- Playback ----
@@ -407,7 +488,10 @@ public class MainActivity extends ComponentActivity {
     private void requestStoragePermissionIfNeeded() {
         if (!hasStoragePermission()) {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQ_STORAGE);
+                    new String[]{
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    }, REQ_STORAGE);
         }
     }
 

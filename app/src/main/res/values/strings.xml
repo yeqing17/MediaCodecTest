@@ -4,10 +4,12 @@
     <!-- Preset playback URLs. Add a label + matching url to extend the dropdown. -->
     <string-array name="preset_labels">
         <item>自定义输入</item>
+        <item>本地 media.ts (U盘/sdcard)</item>
         <item>ICC 直播(抓包 4200000953)</item>
     </string-array>
     <string-array name="preset_urls">
         <item></item>
+        <item>local://media.ts</item>
         <item>http://stream.live.slave.tsyrmt.cn:14311/playurl?protocol=http&amp;playtype=live&amp;accesstoken=R6A30B97DU1090A007K3C31FF9DI4D11F00AP1FDF0M3217021V20A53Z975D289B60W18B96FD9D91EC6A9&amp;programid=4200000953&amp;playtoken=31633TFZUSIARMI10&amp;verifycode=1009909661</item>
     </string-array>
 </resources>
