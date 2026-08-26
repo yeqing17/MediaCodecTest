@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chip-like background for section toggles (playurl Config [+]). -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#33FFFFFF">
+    <item>
+        <shape>
+            <solid android:color="@color/surface_alt" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+</ripple>

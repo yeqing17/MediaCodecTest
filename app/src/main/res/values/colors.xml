@@ -1,6 +1,23 @@
 <resources>
+    <!-- Dark diagnostic palette -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="accent">#FF1565C0</color>
-    <color name="panel_bg">#FFF5F5F5</color>
+
+    <color name="bg">#FF0D1117</color>
+    <color name="surface">#FF151B24</color>
+    <color name="surface_alt">#FF1F2836</color>
+    <color name="stroke">#FF2A3342</color>
+
+    <color name="accent">#FF4D9FFF</color>
+    <color name="accent_dim">#FF2E6FD8</color>
+    <color name="green">#FF3DD68C</color>
+    <color name="red">#FFFF6161</color>
+    <color name="red_dim">#FFC24545</color>
+    <color name="amber">#FFFFB454</color>
+
+    <color name="text">#FFE9EDF4</color>
+    <color name="text_dim">#FF93A0B4</color>
+
+    <!-- Legacy name kept: existing refs (panels) resolve to the dark surface now. -->
+    <color name="panel_bg">#FF151B24</color>
 </resources>

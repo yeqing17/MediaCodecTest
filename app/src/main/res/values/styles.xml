@@ -1,12 +1,63 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Small caps-ish section title used for the playurl Config toggle. -->
     <style name="SectionLabel">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textStyle">bold</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/accent</item>
+        <item name="android:letterSpacing">0.08</item>
+        <item name="android:background">@drawable/bg_toggle</item>
+        <item name="android:paddingTop">9dp</item>
+        <item name="android:paddingBottom">9dp</item>
+        <item name="android:paddingLeft">12dp</item>
+        <item name="android:paddingRight">12dp</item>
+    </style>
+
+    <style name="MCT.Button" parent="Widget.AppCompat.Button">
         <item name="android:textSize">14sp</item>
-        <item name="android:paddingTop">4dp</item>
-        <item name="android:paddingBottom">4dp</item>
+        <item name="android:minHeight">40dp</item>
+        <item name="android:paddingLeft">14dp</item>
+        <item name="android:paddingRight">14dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/text</item>
+    </style>
+
+    <style name="MCT.Button.Primary">
+        <item name="android:background">@drawable/btn_primary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="MCT.Button.Danger">
+        <item name="android:background">@drawable/btn_danger</item>
+    </style>
+
+    <style name="MCT.Button.Ghost">
+        <item name="android:background">@drawable/btn_ghost</item>
+        <item name="android:textColor">@color/text_dim</item>
+    </style>
+
+    <style name="MCT.Button.AccentGhost">
+        <item name="android:background">@drawable/btn_ghost</item>
+        <item name="android:textColor">@color/accent</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="MCT.EditText" parent="Widget.AppCompat.EditText">
+        <item name="android:background">@drawable/bg_input</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textColorHint">@color/text_dim</item>
+        <item name="android:paddingLeft">12dp</item>
+        <item name="android:paddingRight">12dp</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <style name="MCT.CheckBox" parent="Widget.AppCompat.CompoundButton.CheckBox">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/text_dim</item>
+        <item name="android:buttonTint" tools:ignore="UnusedAttribute">@color/accent</item>
     </style>
 
 </resources>

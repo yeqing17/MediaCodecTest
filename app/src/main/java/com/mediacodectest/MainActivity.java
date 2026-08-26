@@ -3,12 +3,17 @@ package com.mediacodectest;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.text.Html;
 import android.text.InputType;
 import android.util.Log;
 import android.view.View;
@@ -28,6 +33,7 @@ import androidx.activity.ComponentActivity;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -35,7 +41,6 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
-import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -52,6 +57,8 @@ import com.mediacodectest.diag.DeviceInfo;
 import com.mediacodectest.export.LogExporter;
 import com.mediacodectest.export.ReportExporter;
 import com.mediacodectest.net.PlayUrlProvider;
+import com.mediacodectest.net.SchemeRoutingDataSource;
+import com.mediacodectest.net.UdpStreamStats;
 
 import java.io.File;
 import java.util.LinkedHashMap;
@@ -70,9 +77,14 @@ public class MainActivity extends ComponentActivity {
     private static final String TAG = "MCT";
     private static final int REQ_STORAGE = 1001;
     private static final long STATS_INTERVAL_MS = 1000L;
+    private static final int MAX_ERROR_RETRIES = 5;
+    private static final long RECONNECT_DELAY_MS = 2000L;
 
     private EditText urlInput;
     private CheckBox forceSoftwareBox;
+    private CheckBox autoReconnectBox;
+    private Button muteBtn;
+    private boolean muted = false;
     private Spinner presetSpinner;
     private TextView advancedToggle;
     private View configContainer;
@@ -81,6 +93,7 @@ public class MainActivity extends ComponentActivity {
     private PlayerView playerView;
     private TextView statsView;
     private ScrollView statsScroll;
+    private View statsDot;
     private ActivityResultLauncher<String[]> openFileLauncher;
     private final Map<String, EditText> configFields = new LinkedHashMap<>();
 
@@ -95,7 +108,11 @@ public class MainActivity extends ComponentActivity {
     private String deviceBlock;
     private String decoderListing;
     private long playbackStartedAtMs = 0;
+    private long playClickElapsedMs = 0;
     private boolean pendingExportReport = false;
+    private int errorRetriesLeft = 0;
+    @Nullable private WifiManager.MulticastLock multicastLock;
+    private final Runnable reconnectRunnable = this::doStartPlayback;
 
     private final Player.Listener playerListener = new Player.Listener() {
         @Override
@@ -113,6 +130,7 @@ public class MainActivity extends ComponentActivity {
         public void onPlayerError(@NonNull PlaybackException error) {
             Log.e(TAG, "player error", error);
             toast("Player error: " + error.getMessage());
+            scheduleReconnect();
         }
     };
 
@@ -135,6 +153,8 @@ public class MainActivity extends ComponentActivity {
 
         urlInput = findViewById(R.id.urlInput);
         forceSoftwareBox = findViewById(R.id.forceSoftware);
+        autoReconnectBox = findViewById(R.id.autoReconnectBox);
+        muteBtn = findViewById(R.id.muteBtn);
         presetSpinner = findViewById(R.id.presetSpinner);
         advancedToggle = findViewById(R.id.advancedToggle);
         configContainer = findViewById(R.id.configContainer);
@@ -142,6 +162,7 @@ public class MainActivity extends ComponentActivity {
         playerView = findViewById(R.id.playerView);
         statsView = findViewById(R.id.statsView);
         statsScroll = findViewById(R.id.statsScroll);
+        statsDot = findViewById(R.id.statsDot);
 
         // SAF file picker: returns a content:// URI for any local file (U盘 / sdcard /
         // tmp). No storage permission needed. We take a persistable read grant so the
@@ -213,13 +234,20 @@ public class MainActivity extends ComponentActivity {
             field.setInputType(InputType.TYPE_CLASS_TEXT);
             field.setTag(e.getKey());
             field.setTextSize(13);
+            // Match the dark input style used in the layout (MCT.EditText is XML-only).
+            field.setBackgroundResource(R.drawable.bg_input);
+            field.setTextColor(getColor(R.color.text));
+            field.setHintTextColor(getColor(R.color.text_dim));
+            field.setPadding(dp(12), dp(8), dp(12), dp(8));
 
             TextView label = new TextView(this);
             label.setText(e.getKey());
             label.setTextSize(12);
+            label.setTextColor(getColor(R.color.text_dim));
 
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             row.addView(label, new LinearLayout.LayoutParams(
@@ -229,17 +257,24 @@ public class MainActivity extends ComponentActivity {
 
             LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            rowLp.bottomMargin = 4;
+            rowLp.bottomMargin = 6;
             container.addView(row, rowLp);
 
             configFields.put(e.getKey(), field);
         }
     }
 
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+
     private void bindButtons() {
         findViewById(R.id.playBtn).setOnClickListener(v -> startPlayback());
         findViewById(R.id.stopBtn).setOnClickListener(v -> stopPlayback());
         findViewById(R.id.openFileBtn).setOnClickListener(v -> openLocalFile());
+        if (muteBtn != null) {
+            muteBtn.setOnClickListener(v -> toggleMute());
+        }
         findViewById(R.id.getUrlBtn).setOnClickListener(v -> fetchPlayUrl());
         findViewById(R.id.exportLogBtn).setOnClickListener(v -> exportLog());
         findViewById(R.id.exportReportBtn).setOnClickListener(v -> exportReport());
@@ -305,18 +340,38 @@ public class MainActivity extends ComponentActivity {
 
     // ---- Playback ----
 
-    @OptIn(markerClass = UnstableApi.class)
+    /** Play button entry: refreshes the reconnect budget, then (re)starts playback. */
     private void startPlayback() {
+        errorRetriesLeft = MAX_ERROR_RETRIES;
+        doStartPlayback();
+    }
+
+    @OptIn(markerClass = UnstableApi.class)
+    private void doStartPlayback() {
         String url = urlInput.getText().toString().trim();
         if (url.isEmpty()) {
             toast("Enter a URL first");
             return;
         }
+        String lower = url.toLowerCase(Locale.US);
+        boolean isUdp = lower.startsWith("udp:") || lower.startsWith("rtp:");
+
+        UdpStreamStats.reset();
+        if (isUdp) {
+            // Wi-Fi drivers silently drop multicast frames unless a MulticastLock is
+            // held; Ethernet devices don't need it but holding it is harmless.
+            ensureMulticastLock();
+            UdpStreamStats.setTransportLabel("UDP 待连接...");
+        } else {
+            releaseMulticastLock();
+        }
+
         boolean forceSoftware = forceSoftwareBox.isChecked();
         stats.setForceSoftware(forceSoftware);
         stats.reset();
         fpsCounter.reset();
         playbackStartedAtMs = 0;
+        playClickElapsedMs = SystemClock.elapsedRealtime();
 
         releasePlayer();
 
@@ -339,12 +394,15 @@ public class MainActivity extends ComponentActivity {
                 .setUserAgent("VLC/3.0.20 LibVLC/3.0.20")
                 .setConnectTimeoutMs(15000)
                 .setReadTimeoutMs(30000);
-        DefaultDataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(this,
-                new HttpTraceDataSource.Factory(httpFactory));
+        // Route by URI scheme per open(): http(s) keeps the traced HTTP stack,
+        // udp/rtp go to the multicast DataSource, file/content to DefaultDataSource.
+        SchemeRoutingDataSource.Factory dataSourceFactory =
+                new SchemeRoutingDataSource.Factory(getApplicationContext(),
+                        new HttpTraceDataSource.Factory(httpFactory));
         DefaultMediaSourceFactory mediaSourceFactory =
                 new DefaultMediaSourceFactory(dataSourceFactory, new DefaultExtractorsFactory());
 
-        Log.i(TAG, "Play URL: " + url);
+        Log.i(TAG, "Play URL: " + url + (isUdp ? " [UDP/multicast]" : ""));
 
         player = new ExoPlayer.Builder(this, renderersFactory)
                 .setMediaSourceFactory(mediaSourceFactory)
@@ -352,6 +410,7 @@ public class MainActivity extends ComponentActivity {
         player.addListener(playerListener);
         player.addAnalyticsListener(stats);
         player.setVideoFrameMetadataListener(fpsCounter);
+        applyMuted();
         playerView.setPlayer(player);
 
         MediaItem item = MediaItem.fromUri(url);
@@ -364,6 +423,8 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void stopPlayback() {
+        errorRetriesLeft = 0;
+        mainHandler.removeCallbacks(reconnectRunnable);
         if (player != null) {
             player.stop();
         }
@@ -377,6 +438,63 @@ public class MainActivity extends ComponentActivity {
             player.release();
             player = null;
             playerView.setPlayer(null);
+        }
+    }
+
+    /** Error-triggered retry, honoring the Auto Reconnect checkbox and its budget. */
+    private void scheduleReconnect() {
+        if (errorRetriesLeft <= 0 || autoReconnectBox == null || !autoReconnectBox.isChecked()) {
+            return;
+        }
+        errorRetriesLeft--;
+        toast(String.format(Locale.US, "播放出错，%ds 后自动重连（剩 %d 次）",
+                RECONNECT_DELAY_MS / 1000, errorRetriesLeft));
+        mainHandler.removeCallbacks(reconnectRunnable);
+        mainHandler.postDelayed(reconnectRunnable, RECONNECT_DELAY_MS);
+    }
+
+    private void toggleMute() {
+        muted = !muted;
+        if (muteBtn != null) {
+            muteBtn.setText(muted ? "声音" : "静音");
+        }
+        applyMuted();
+    }
+
+    private void applyMuted() {
+        if (player != null) {
+            player.setVolume(muted ? 0f : 1f);
+        }
+    }
+
+    private void ensureMulticastLock() {
+        if (multicastLock != null) {
+            return;
+        }
+        try {
+            WifiManager wm = getSystemService(WifiManager.class);
+            if (wm == null) {
+                Log.w(TAG, "no WifiManager; Wi-Fi multicast frames may be filtered");
+                return;
+            }
+            multicastLock = wm.createMulticastLock("mct-udp");
+            multicastLock.setReferenceCounted(false);
+            multicastLock.acquire();
+            Log.i(TAG, "multicast lock acquired");
+        } catch (Exception e) {
+            Log.w(TAG, "multicast lock acquire failed", e);
+        }
+    }
+
+    private void releaseMulticastLock() {
+        if (multicastLock != null) {
+            try {
+                multicastLock.release();
+            } catch (Exception ignore) {
+                // already released / state lost
+            }
+            multicastLock = null;
+            Log.i(TAG, "multicast lock released");
         }
     }
 
@@ -444,43 +562,138 @@ public class MainActivity extends ComponentActivity {
 
     // ---- Stats rendering ----
 
+    private static final String HEX_ACCENT = "#4D9FFF";
+    private static final String HEX_DIM = "#93A0B4";
+    private static final String HEX_GREEN = "#3DD68C";
+    private static final String HEX_AMBER = "#FFB454";
+    private static final String HEX_RED = "#FF6161";
+
+    /** FPS verdict at a glance: ≥23 good (25fps source), 18–22 marginal, below red. */
     @OptIn(markerClass = UnstableApi.class)
     private void updateStats() {
         int fps = fpsCounter.tickAndReset();
         StringBuilder sb = new StringBuilder();
 
-        sb.append("=== Device ===\n").append(deviceBlock).append('\n');
-        sb.append("=== Decoders ===\n").append(decoderListing).append('\n');
+        sb.append(section("DEVICE")).append(esc(deviceBlock)).append('\n');
+        sb.append(section("DECODERS")).append(esc(decoderListing)).append('\n');
 
-        sb.append("=== Playback ===\n");
-        sb.append("Decoder  : ").append(stats.getDecoderName()).append('\n');
-        sb.append("MimeType : ").append(stats.getMimeType()).append('\n');
-        sb.append("Res      : ").append(stats.getResolution()).append('\n');
-        sb.append("FPS      : ").append(fps)
-                .append("  (peak ").append(fpsCounter.getPeakFps()).append(")\n");
-        sb.append("Dropped  : ").append(stats.getDroppedTotal()).append('\n');
-        sb.append("Bitrate  : ").append(stats.getBitrate()).append('\n');
+        sb.append(section("PLAYBACK"));
+        sb.append(kv("Transport", esc(UdpStreamStats.getTransportLabel())));
+        sb.append(kv("Decoder", esc(stats.getDecoderName())));
+        sb.append(kv("MimeType", esc(stats.getMimeType())));
+        sb.append(kv("Res", stats.getResolution()));
 
-        if (player != null) {
-            sb.append("Buffered : ").append(player.getBufferedPercentage()).append("%  ");
-            sb.append(formatMs(player.getBufferedPosition())).append('\n');
-            sb.append("Position : ").append(formatMs(player.getCurrentPosition())).append('\n');
-            int state = player.getPlaybackState();
-            sb.append("State    : ").append(stateName(state));
-            if (player.isPlaying()) {
-                sb.append(" [playing]");
-            }
-            sb.append('\n');
-        }
+        String fpsHex = fps <= 0 ? HEX_DIM : fps >= 23 ? HEX_GREEN
+                : fps >= 18 ? HEX_AMBER : HEX_RED;
+        sb.append(colon("FPS")).append(span(fpsHex, "<b>" + fps + "</b>"))
+                .append("  ").append(span(HEX_DIM, "(peak " + fpsCounter.getPeakFps() + ")"))
+                .append('\n');
+
+        buildRest(sb);
 
         // Preserve scroll position across the per-second setText(), otherwise the
         // ScrollView snaps back to the top every refresh.
         int scrollY = statsScroll != null ? statsScroll.getScrollY() : 0;
-        statsView.setText(sb.toString());
+        statsView.setText(Html.fromHtml(sb.toString(), Html.FROM_HTML_MODE_LEGACY));
         if (statsScroll != null) {
             final int sy = scrollY;
             statsScroll.post(() -> statsScroll.scrollTo(0, sy));
         }
+    }
+
+    private void buildRest(StringBuilder sb) {
+        int dropped = stats.getDroppedTotal();
+        sb.append(kvHtml("Dropped", dropped > 0
+                ? span(HEX_RED, "<b>" + dropped + "</b>")
+                : span(HEX_DIM, String.valueOf(dropped))));
+        sb.append(kv("Bitrate", stats.getBitrate()));
+
+        long firstFrameMs = stats.getFirstFrameRealtimeMs();
+        if (firstFrameMs > 0 && playClickElapsedMs > 0) {
+            sb.append(kvHtml("FirstFr", span(HEX_DIM,
+                    (firstFrameMs - playClickElapsedMs) + " ms")));
+        }
+
+        if (UdpStreamStats.isActive()) {
+            long delta = UdpStreamStats.takeByteDelta(); // bytes since previous second
+            sb.append(kvHtml("UDP RX", span(HEX_ACCENT, delta * 8 / 1000 + " kbps")
+                    + span(HEX_DIM, "  total " + UdpStreamStats.getTotalBytes() / 1024 + " KB")));
+            long lost = UdpStreamStats.getLostPackets();
+            sb.append(kvHtml("UDPPkt", lost > 0
+                    ? span(HEX_RED, UdpStreamStats.getTotalPackets() + "  lost <b>" + lost + "</b>")
+                    : span(HEX_GREEN, UdpStreamStats.getTotalPackets() + "  lost 0")));
+        }
+
+        if (player != null) {
+            sb.append(kv("Buffered", player.getBufferedPercentage() + "%  "
+                    + formatMs(player.getBufferedPosition())));
+            sb.append(kv("Position", formatMs(player.getCurrentPosition())));
+            int state = player.getPlaybackState();
+            boolean playing = player.isPlaying();
+            String hex = playing ? HEX_GREEN
+                    : state == Player.STATE_BUFFERING ? HEX_AMBER
+                    : state == Player.STATE_READY ? HEX_ACCENT
+                    : HEX_RED;
+            sb.append(kvHtml("State", span(hex, esc(stateName(state))
+                    + (playing ? " [playing]" : ""))));
+            applyDot(state, playing);
+        } else {
+            sb.append(kv("State", "stopped"));
+            setDotColor(getColor(R.color.text_dim));
+        }
+    }
+
+    private void applyDot(int state, boolean playing) {
+        int color;
+        if (playing) {
+            color = getColor(R.color.green);
+        } else if (state == Player.STATE_BUFFERING) {
+            color = getColor(R.color.amber);
+        } else if (state == Player.STATE_READY) {
+            color = getColor(R.color.accent);
+        } else {
+            color = getColor(R.color.red);
+        }
+        setDotColor(color);
+    }
+
+    private void setDotColor(int color) {
+        if (statsDot != null) {
+            statsDot.setBackgroundTintList(ColorStateList.valueOf(color));
+        }
+    }
+
+    // ---- tiny html builders for the stats panel ----
+
+    /** Key padded so the ": values" column stays aligned in monospace. */
+    private static String colon(String key) {
+        StringBuilder b = new StringBuilder(key);
+        while (b.length() < 9) {
+            b.append(' ');
+        }
+        return b.append(": ").toString();
+    }
+
+    private static String kv(String key, String value) {
+        return colon(key) + value + '\n';
+    }
+
+    private static String kvHtml(String key, String htmlValue) {
+        return colon(key) + htmlValue + '\n';
+    }
+
+    private static String span(String hex, String inner) {
+        return "<font color='" + hex + "'>" + inner + "</font>";
+    }
+
+    private static String section(String title) {
+        return span(HEX_ACCENT, "<b>" + title + "</b>") + "  "
+                + span("#2A3342", "──────────────") + '\n';
+    }
+
+    private static String esc(String s) {
+        return s == null ? "" : s.replace("&", "&amp;")
+                .replace("<", "&lt;").replace(">", "&gt;");
     }
 
     // ---- Permissions ----
@@ -530,7 +743,9 @@ public class MainActivity extends ComponentActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        mainHandler.removeCallbacks(reconnectRunnable);
         releasePlayer();
+        releaseMulticastLock();
     }
 
     // ---- Helpers ----
