@@ -32,6 +32,17 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
+      # Always expose the APK as an artifact too, so a manual workflow_dispatch run
+      # (ref = main, not a tag) still yields a downloadable APK even though the
+      # Release-publishing step below only fires for tag refs.
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MediaCodecTest-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
       - name: Upload build reports
         if: always()
         uses: actions/upload-artifact@v4
