@@ -187,6 +187,14 @@ public class MainActivity extends ComponentActivity {
 
         setupPresets();
 
+        // Prefill the default multicast address so a fresh install can hit Play
+        // directly; anything the user restores/types keeps priority.
+        if (urlInput.getText().toString().isEmpty()) {
+            String def = getString(R.string.udp_default_url);
+            urlInput.setText(def);
+            urlInput.setSelection(def.length());
+        }
+
         updateStats();
         requestStoragePermissionIfNeeded();
     }

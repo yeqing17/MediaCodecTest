@@ -15,6 +15,10 @@
 
 ## 更新记录
 
+- **v1.4.1**：默认组播地址落到 `udp://238.1.1.4:5000`——启动时自动填入 URL 框，
+  预设下拉同步提供「UDP组播 238.1.1.4:5000」，打开即 Play；CI 每次
+  构建（含手动 Run workflow）都会把 APK 上传为运行产物 `MediaCodecTest-apk`。
+
 - **v1.4.0**：新增 **UDP 组播 / 单播播放**（`udp://`、`rtp://`，ExoPlayer 无内置 UDP 数据源，
   自研 `UdpMulticastDataSource`；自动选网卡加入组播组 + WiFi MulticastLock、RTP 头自动剥离
   与丢包统计、SO_RCVBUF 可调）；新增「Auto Reconnect」错误自动重连开关、「静音」按钮、
@@ -99,8 +103,12 @@ APK 用 debug 签名（内部诊断工具，无需正式签名），可直接安
 `preset_labels` / `preset_urls` 两个数组里（顺序一一对应）。加新预设往里各加一行即可，
 URL 里的 `&` 写成 `&amp;`。当前内置：
 
+- 「UDP组播 238.1.1.4:5000」（默认地址，启动时已直接填入 URL 框）；
 - ICC 抓包直播流；
 - 「本地 media.ts」预设，值为 `local://media.ts`：选中后自动扫 sdcard 及每个挂载的可移动卷（U盘/SD）根目录，命中即填入 `file://` 路径；读不到会提示用「文件」按钮手选。
+
+其中 UDP 默认地址定义在 strings.xml 的 `udp_default_url`（preset_urls 数组用
+`@string/udp_default_url` 引用同一份）。
 
 ## 本地文件播放
 
