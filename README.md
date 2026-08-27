@@ -15,6 +15,13 @@
 
 ## 更新记录
 
+- **v1.4.3**：修复点「GET URL → 拼播放地址」必闪退：URL 编码用了
+  `URLEncoder.encode(String, Charset)` 重载（**API 33+ 才有**，Android 9 盒子直接抛
+  `NoSuchMethodError`，且它是 Error 不是 Exception，穿透了原有的 catch 而杀死进程；
+  v1.1.0 引入该流程时埋下，只在老系统真机上触发）。改用全版本通用的字符串形式。
+  另外新增全局崩溃记录器：任何闪退都会在 `/sdcard/MediaCodecTest/crash_*.txt`
+  留下完整堆栈；playurl 链路异常捕获扩为 Throwable，OOM 等 Error 也转为提示。
+
 - **v1.4.2**：修复遥控器（D-pad）操作看不出焦点的问题——上一版重做 UI 后，
   按钮 selector 只有 pressed/enabled 没有 focused 状态，电视上移动焦点毫无反馈。
   现在所有按钮聚焦时显示描边高亮（Play/Stop 白环、次级按钮填充+蓝边）、

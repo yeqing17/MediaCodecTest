@@ -53,6 +53,7 @@ import com.mediacodectest.analytics.HttpTraceDataSource;
 import com.mediacodectest.analytics.SoftwareCodecSelector;
 import com.mediacodectest.analytics.StatsCollector;
 import com.mediacodectest.diag.CodecDiagnostor;
+import com.mediacodectest.diag.CrashReporter;
 import com.mediacodectest.diag.DeviceInfo;
 import com.mediacodectest.export.LogExporter;
 import com.mediacodectest.export.ReportExporter;
@@ -146,6 +147,9 @@ public class MainActivity extends ComponentActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // First thing: any crash after this point lands in a crash_*.txt file
+        // under /sdcard/MediaCodecTest/ instead of vanishing with the process.
+        CrashReporter.install(this);
         setContentView(R.layout.activity_main);
 
         deviceBlock = DeviceInfo.toBlock();

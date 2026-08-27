@@ -95,9 +95,12 @@ public class PlayUrlProvider {
                 Log.i(TAG, "playurl step3 ok: " + finalUrl);
                 final String result = finalUrl;
                 post(callback, () -> callback.onUrl(result));
-            } catch (Exception e) {
-                Log.e(TAG, "playurl failed", e);
-                postError(callback, e.getMessage());
+            } catch (Throwable t) {
+                // Throwable on purpose: on memory-tight TV boxes Errors (OOM etc.)
+                // must surface as an error toast, not kill the process silently.
+                Log.e(TAG, "playurl failed", t);
+                postError(callback, t.getMessage() != null
+                        ? t.getMessage() : t.getClass().getSimpleName());
             }
         });
     }
@@ -193,7 +196,15 @@ public class PlayUrlProvider {
     }
 
     private static String enc(String s) {
-        return URLEncoder.encode(nullToEmpty(s), StandardCharsets.UTF_8);
+        // The URLEncoder.encode(String, Charset) overload only exists on API 33+;
+        // on the Android 9 target boxes it throws NoSuchMethodError (an Error, so
+        // it escapes Exception handlers and kills the process = the 拼接URL crash).
+        // The string form below works on every API level; UTF-8 is always present.
+        try {
+            return URLEncoder.encode(nullToEmpty(s), "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            return nullToEmpty(s);
+        }
     }
 
     private static String nullToEmpty(String s) {
