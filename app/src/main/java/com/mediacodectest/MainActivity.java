@@ -30,11 +30,13 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
 import androidx.activity.ComponentActivity;
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.media3.common.MediaItem;
@@ -115,6 +117,7 @@ public class MainActivity extends ComponentActivity {
     private int errorRetriesLeft = 0;
     @Nullable private WifiManager.MulticastLock multicastLock;
     private final Runnable reconnectRunnable = this::doStartPlayback;
+    @Nullable private AlertDialog exitDialog;
 
     private final Player.Listener playerListener = new Player.Listener() {
         @Override
@@ -152,6 +155,15 @@ public class MainActivity extends ComponentActivity {
         // under /sdcard/MediaCodecTest/ instead of vanishing with the process.
         CrashReporter.install(this);
         setContentView(R.layout.activity_main);
+
+        // TV remotes make it far too easy to machine-gun the Back key straight
+        // out of the app; gate the exit behind a confirmation dialog instead.
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                confirmExit();
+            }
+        });
 
         deviceBlock = DeviceInfo.toBlock();
         decoderListing = CodecDiagnostor.buildDecoderListing();
@@ -794,6 +806,28 @@ public class MainActivity extends ComponentActivity {
     }
 
     // ---- Helpers ----
+
+    /**
+     * Exit gate for TV remotes: rapid Back presses open this dialog instead of
+     * finishing the activity. Focus defaults to 取消 so a stray extra press is
+     * harmless; Back while shown just dismisses it (still nothing quits).
+     */
+    private void confirmExit() {
+        if (exitDialog != null && exitDialog.isShowing()) {
+            return;
+        }
+        exitDialog = new AlertDialog.Builder(this)
+                .setTitle("退出 MediaCodecTest")
+                .setMessage("确定要退出吗？正在播放的流会停止。")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("退出", (d, w) -> finishAffinity())
+                .create();
+        exitDialog.show();
+        Button cancel = exitDialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        if (cancel != null) {
+            cancel.requestFocus();
+        }
+    }
 
     private void toast(final String msg) {
         runOnUiThread(() -> Toast.makeText(this, msg, Toast.LENGTH_LONG).show());
