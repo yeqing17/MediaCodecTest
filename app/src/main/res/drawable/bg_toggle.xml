@@ -1,11 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Chip-like background for section toggles (playurl Config [+]). -->
+<!-- Chip-like background for section toggles (playurl Config [+]).
+     Focus/press get an explicit accent stroke — ripple alone is not visible
+     enough from a couch when navigating with a D-pad remote. -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
     android:color="#33FFFFFF">
     <item>
-        <shape>
-            <solid android:color="@color/surface_alt" />
-            <corners android:radius="10dp" />
-        </shape>
+        <selector>
+            <item android:state_pressed="true">
+                <shape>
+                    <solid android:color="@color/surface_alt" />
+                    <stroke android:width="2dp" android:color="@color/accent" />
+                    <corners android:radius="10dp" />
+                </shape>
+            </item>
+            <item android:state_focused="true">
+                <shape>
+                    <solid android:color="@color/surface_alt" />
+                    <stroke android:width="2dp" android:color="@color/accent" />
+                    <corners android:radius="10dp" />
+                </shape>
+            </item>
+            <item>
+                <shape>
+                    <solid android:color="@color/surface_alt" />
+                    <corners android:radius="10dp" />
+                </shape>
+            </item>
+        </selector>
     </item>
 </ripple>

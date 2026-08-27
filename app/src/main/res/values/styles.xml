@@ -35,7 +35,7 @@
 
     <style name="MCT.Button.Ghost">
         <item name="android:background">@drawable/btn_ghost</item>
-        <item name="android:textColor">@color/text_dim</item>
+        <item name="android:textColor">@color/ghost_text</item>
     </style>
 
     <style name="MCT.Button.AccentGhost">
@@ -56,8 +56,14 @@
 
     <style name="MCT.CheckBox" parent="Widget.AppCompat.CompoundButton.CheckBox">
         <item name="android:textSize">13sp</item>
-        <item name="android:textColor">@color/text_dim</item>
+        <item name="android:textColor">@color/check_text</item>
         <item name="android:buttonTint" tools:ignore="UnusedAttribute">@color/accent</item>
+        <!-- Accent outline chip so D-pad focus is visible from a couch. -->
+        <item name="android:background">@drawable/bg_focus_chip</item>
+        <item name="android:paddingLeft">10dp</item>
+        <item name="android:paddingRight">12dp</item>
+        <item name="android:paddingTop">5dp</item>
+        <item name="android:paddingBottom">5dp</item>
     </style>
 
 </resources>

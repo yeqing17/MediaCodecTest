@@ -1,21 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Primary action (Play): solid accent, darker when pressed, dimmed disabled. -->
+<!-- Primary action (Play): solid accent, white focus ring for D-pad.
+     Every state draws a 2dp stroke so switching states never shifts content. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape>
             <solid android:color="@color/accent_dim" />
+            <stroke android:width="2dp" android:color="@android:color/transparent" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
+    <item android:state_focused="true">
+        <shape>
+            <solid android:color="@color/accent" />
+            <stroke android:width="2dp" android:color="@color/white" />
             <corners android:radius="10dp" />
         </shape>
     </item>
     <item android:state_enabled="false">
         <shape>
             <solid android:color="@color/surface_alt" />
+            <stroke android:width="2dp" android:color="@android:color/transparent" />
             <corners android:radius="10dp" />
         </shape>
     </item>
     <item>
         <shape>
             <solid android:color="@color/accent" />
+            <stroke android:width="2dp" android:color="@android:color/transparent" />
             <corners android:radius="10dp" />
         </shape>
     </item>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Text for ghost buttons (文件 / 静音 / Export): dim normally, bright when
+     D-pad focused or pressed so the focused control is obvious on TV. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="@color/text" />
+    <item android:state_pressed="true" android:color="@color/text" />
+    <item android:color="@color/text_dim" />
+</selector>

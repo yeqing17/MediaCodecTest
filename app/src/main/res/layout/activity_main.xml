@@ -19,17 +19,23 @@
         android:layout_weight="3"
         android:orientation="vertical">
 
-        <!-- Preset dropdown inside an input-style shell -->
+        <!-- Preset dropdown inside an input-style shell. addStatesFromChildren
+             mirrors the inner Spinner's focused state onto this shell's
+             background (bg_input shows an accent stroke when focused). -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="40dp"
+            android:addStatesFromChildren="true"
             android:background="@drawable/bg_input">
 
             <Spinner
                 android:id="@+id/presetSpinner"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:paddingLeft="8dp" />
+                android:paddingLeft="8dp" >
+
+                <requestFocus />
+            </Spinner>
         </FrameLayout>
 
         <!-- URL + action buttons -->
@@ -128,13 +134,15 @@
                 app:use_controller="false" />
         </FrameLayout>
 
-        <!-- Collapsible playurl config -->
+        <!-- Collapsible playurl config. TextViews are not focusable by default;
+             focusable=true is required or a D-pad remote can never reach it. -->
         <TextView
             android:id="@+id/advancedToggle"
             style="@style/SectionLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:focusable="true"
             android:text="PLAYURL CONFIG  [+]" />
 
         <LinearLayout
@@ -228,7 +236,6 @@
                 android:lineSpacingExtra="2dp"
                 android:padding="12dp"
                 android:textColor="@color/text"
-                android:textIsSelectable="true"
                 android:textSize="14sp" />
         </ScrollView>
     </LinearLayout>
