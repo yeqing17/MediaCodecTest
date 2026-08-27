@@ -15,6 +15,12 @@
 
 ## 更新记录
 
+- **v1.4.4**：修复遥控器焦点跳到 playurl Config 面板时选不中 chnlid 输入框：
+  三行是 `[标签][输入框]` 结构而标签宽度不同，框的左边缘不在一条线上，
+  系统的几何光束式焦点搜索会跳过错位的行。现改为显式 nextFocus 链
+  （toggle→account→deviceno→chnlid→GET URL 往返焊死，不再依赖启发式）；
+  展开面板后焦点自动落到第一个框、收起后回到开关。
+
 - **v1.4.3**：修复点「GET URL → 拼播放地址」必闪退：URL 编码用了
   `URLEncoder.encode(String, Charset)` 重载（**API 33+ 才有**，Android 9 盒子直接抛
   `NoSuchMethodError`，且它是 Error 不是 Exception，穿透了原有的 catch 而杀死进程；

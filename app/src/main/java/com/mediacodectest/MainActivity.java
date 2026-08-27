@@ -62,6 +62,7 @@ import com.mediacodectest.net.SchemeRoutingDataSource;
 import com.mediacodectest.net.UdpStreamStats;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -239,6 +240,7 @@ public class MainActivity extends ComponentActivity {
 
     private void buildConfigFields() {
         LinearLayout container = findViewById(R.id.configContainer);
+        ArrayList<EditText> order = new ArrayList<>();
         for (Map.Entry<String, String> e : PlayUrlProvider.defaultParamKeys().entrySet()) {
             EditText field = new EditText(this);
             field.setHint(e.getKey());
@@ -246,6 +248,7 @@ public class MainActivity extends ComponentActivity {
             field.setInputType(InputType.TYPE_CLASS_TEXT);
             field.setTag(e.getKey());
             field.setTextSize(13);
+            field.setId(View.generateViewId());
             // Match the dark input style used in the layout (MCT.EditText is XML-only).
             field.setBackgroundResource(R.drawable.bg_input);
             field.setTextColor(getColor(R.color.text));
@@ -273,6 +276,24 @@ public class MainActivity extends ComponentActivity {
             container.addView(row, rowLp);
 
             configFields.put(e.getKey(), field);
+            order.add(field);
+        }
+
+        // Wire the D-pad chain explicitly. The rows are [label][field] and the
+        // labels differ in width, so each field's left edge sits at a different x;
+        // geometric focus search (the beam algorithm) then skips offset rows —
+        // that is how chnlid became unreachable by remote. Explicit ids leave
+        // nothing to heuristics. Targets that are currently GONE simply fall
+        // back to the default search.
+        View getUrlBtn = findViewById(R.id.getUrlBtn);
+        int n = order.size();
+        for (int i = 0; i < n; i++) {
+            EditText f = order.get(i);
+            f.setNextFocusUpId(i == 0 ? R.id.advancedToggle : order.get(i - 1).getId());
+            f.setNextFocusDownId(i == n - 1 ? R.id.getUrlBtn : order.get(i + 1).getId());
+        }
+        if (n > 0 && getUrlBtn != null) {
+            getUrlBtn.setNextFocusUpId(order.get(n - 1).getId());
         }
     }
 
@@ -347,6 +368,18 @@ public class MainActivity extends ComponentActivity {
         if (advancedToggle != null) {
             advancedToggle.setText(advancedOpen
                     ? "playurl Config  [-]" : "playurl Config  [+]");
+        }
+        // Keep remote navigation predictable: entering the panel lands on its
+        // first input; collapsing hands focus back to the toggle itself.
+        if (advancedOpen && configContainer != null && !configFields.isEmpty()) {
+            final View first = configFields.values().iterator().next();
+            configContainer.post(() -> {
+                if (first.isShown()) {
+                    first.requestFocus();
+                }
+            });
+        } else if (!advancedOpen && advancedToggle != null) {
+            advancedToggle.requestFocus();
         }
     }
 
